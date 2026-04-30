@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carrier Tracking Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --glass-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at top right, #1e1b4b, #0f172a);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            text-align: center;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            color: var(--text-main);
+            font-size: 1rem;
+            font-family: inherit;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        select option {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+        }
+
+        button {
+            width: 100%;
+            padding: 1rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+            box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.39);
+        }
+
+        button:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .loader {
+            display: none;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .result-card {
+            display: none;
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            background: rgba(16, 185, 129, 0.05);
+            border: 1px solid rgba(16, 185, 129, 0.1);
+            border-radius: 16px;
+            animation: fadeIn 0.4s ease-out;
+        }
+        
+        .result-card.error {
+            background: rgba(239, 68, 68, 0.05);
+            border-color: rgba(239, 68, 68, 0.1);
+        }
+
+        .eta-card {
+            display: none;
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 16px;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .eta-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .eta-badge {
+            background: var(--primary);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .eta-date {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #60a5fa;
+            margin-bottom: 0.25rem;
+        }
+
+        .eta-time {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        .confidence-section {
+            margin: 1rem 0;
+        }
+
+        .confidence-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .confidence-bar-bg {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .confidence-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            width: 0%;
+            transition: width 1s ease-in-out;
+        }
+
+        .eta-reasoning {
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: var(--text-muted);
+            border-top: 1px solid var(--glass-border);
+            padding-top: 1rem;
+            margin-top: 1rem;
+        }
+
+        .risk-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .risk-tag {
+            background: rgba(239, 68, 68, 0.1);
+            color: #f87171;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .result-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #10b981;
+        }
+        
+        pre {
+            white-space: pre-wrap;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            word-wrap: break-word;
+            background: rgba(0,0,0,0.2);
+            padding: 1rem;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Track Your Shipment</h1>
+        <p class="subtitle">Enter your details to get real-time updates</p>
+
+        <form id="trackingForm">
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" required placeholder="you@example.com">
+            </div>
+
+            <div class="form-group">
+                <label for="trackingNumber">Tracking Number</label>
+                <input type="text" id="trackingNumber" required placeholder="e.g. JVGL062185...">
+            </div>
+
+            <div class="form-group">
+                <label for="carrier">Select Carrier</label>
+                <select id="carrier" required>
+                    <option value="" disabled selected>Choose a carrier</option>
+                    <option value="DHL">DHL</option>
+                    <option value="FedEx">FedEx</option>
+                    <option value="UPS">UPS</option>
+                    <option value="USPS">USPS</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <button type="submit" id="submitBtn">
+                <span id="btnText">Track Package</span>
+                <div class="loader" id="btnLoader"></div>
+            </button>
+        </form>
+
+        <div class="eta-card" id="etaCard">
+            <div class="eta-header">
+                <div class="eta-badge">AI Prediction</div>
+                <div id="etaConfidenceText" style="font-size: 0.8rem; font-weight: 600;">85% Confidence</div>
+            </div>
+            <div class="eta-date" id="etaDate">Calculating...</div>
+            <div class="eta-time" id="etaTime">Analysis in progress</div>
+            
+            <div class="confidence-section">
+                <div class="confidence-bar-bg">
+                    <div class="confidence-bar-fill" id="etaBar"></div>
+                </div>
+            </div>
+
+            <div class="eta-reasoning">
+                <div style="font-weight: 600; color: var(--text-main); margin-bottom: 0.4rem;">AI Analysis:</div>
+                <div id="etaReasoning">...</div>
+                <div class="risk-list" id="etaRisks"></div>
+            </div>
+        </div>
+
+        <div class="result-card" id="resultCard">
+            <div class="result-title" id="resultTitle">Status Update</div>
+            <pre id="resultText"></pre>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const emailInput = document.getElementById('email');
+            const trackingInput = document.getElementById('trackingNumber');
+            const carrierSelect = document.getElementById('carrier');
+            const form = document.getElementById('trackingForm');
+            const resultCard = document.getElementById('resultCard');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultText = document.getElementById('resultText');
+            
+            const etaCard = document.getElementById('etaCard');
+            const etaDate = document.getElementById('etaDate');
+            const etaTime = document.getElementById('etaTime');
+            const etaBar = document.getElementById('etaBar');
+            const etaConfidenceText = document.getElementById('etaConfidenceText');
+            const etaReasoning = document.getElementById('etaReasoning');
+            const etaRisks = document.getElementById('etaRisks');
+
+            if (localStorage.getItem('savedEmail')) {
+                emailInput.value = localStorage.getItem('savedEmail');
+            }
+            if (localStorage.getItem('savedTracking')) {
+                trackingInput.value = localStorage.getItem('savedTracking');
+            }
+            if (localStorage.getItem('savedCarrier')) {
+                carrierSelect.value = localStorage.getItem('savedCarrier');
+            }
+
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                localStorage.setItem('savedEmail', emailInput.value);
+                localStorage.setItem('savedTracking', trackingInput.value);
+                localStorage.setItem('savedCarrier', carrierSelect.value);
+
+                const btnText = document.getElementById('btnText');
+                const btnLoader = document.getElementById('btnLoader');
+                const submitBtn = document.getElementById('submitBtn');
+                
+                btnText.style.display = 'none';
+                btnLoader.style.display = 'block';
+                submitBtn.disabled = true;
+                
+                resultCard.style.display = 'none';
+                etaCard.style.display = 'none';
+                
+                try {
+                    const response = await fetch('/api/track/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({
+                            email: emailInput.value,
+                            tracking_number: trackingInput.value,
+                            carrier: carrierSelect.value
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Failed to fetch status');
+                    }
+                    
+                    resultCard.style.display = 'block';
+                    resultCard.className = 'result-card';
+
+                    if (data.shipments && data.shipments.length > 0) {
+                        const shipment = data.shipments[0];
+                        const mainStatus = shipment.status ? shipment.status.status : "Unknown";
+                        resultTitle.textContent = "Status: " + mainStatus;
+                        
+                        let displayText = "Details:\n";
+                        if (shipment.status && shipment.status.description) {
+                            displayText += shipment.status.description + "\n\n";
+                        }
+                        
+                        if (shipment.events && shipment.events.length > 0) {
+                            displayText += "Tracking Events:\n";
+                            shipment.events.forEach(ev => {
+                                const date = new Date(ev.timestamp).toLocaleString();
+                                const loc = (ev.location && ev.location.address) ? ev.location.address.addressLocality : "Unknown location";
+                                displayText += `- [${date}] ${ev.description} (${loc})\n`;
+                            });
+                        }
+                        resultText.textContent = displayText;
+                    } else {
+                        resultTitle.textContent = "Raw Response";
+                        resultText.textContent = JSON.stringify(data, null, 2);
+                    }
+
+                    // AI ETA Prediction UI
+                    if (data.ai_prediction && data.ai_prediction.confidence > 0) {
+                        const pred = data.ai_prediction;
+                        etaCard.style.display = 'block';
+                        
+                        if (pred.estimated_delivery && pred.estimated_delivery !== "Unknown") {
+                            const date = new Date(pred.estimated_delivery);
+                            etaDate.textContent = date.toLocaleDateString('en-US', { 
+                                month: 'long', day: 'numeric', year: 'numeric' 
+                            });
+                        } else {
+                            etaDate.textContent = "Date TBD";
+                        }
+                        
+                        etaTime.textContent = pred.estimated_time_range || "Analysis Pending";
+                        etaConfidenceText.textContent = pred.confidence + "% Confidence";
+                        
+                        // Reset and then set width for animation
+                        etaBar.style.width = "0%";
+                        setTimeout(() => {
+                            etaBar.style.width = pred.confidence + "%";
+                        }, 100);
+                        
+                        etaReasoning.textContent = pred.reasoning;
+                        
+                        etaRisks.innerHTML = '';
+                        if (pred.risk_factors && pred.risk_factors.length > 0) {
+                            pred.risk_factors.forEach(risk => {
+                                const span = document.createElement('span');
+                                span.className = 'risk-tag';
+                                span.textContent = risk;
+                                etaRisks.appendChild(span);
+                            });
+                        }
+                    }
+                    
+                } catch (error) {
+                    resultCard.style.display = 'block';
+                    resultCard.className = 'result-card error';
+                    resultTitle.textContent = "Error";
+                    resultText.textContent = error.message;
+                } finally {
+                    btnText.style.display = 'block';
+                    btnLoader.style.display = 'none';
+                    submitBtn.disabled = false;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
