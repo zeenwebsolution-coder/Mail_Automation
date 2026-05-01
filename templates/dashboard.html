@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Carrier Tracking Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --glass-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --primary: #3b82f6;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #a78bfa;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at top right, #1e1b4b, #0f172a);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background: rgba(15, 23, 42, 0.8);
+            border-right: 1px solid var(--glass-border);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar h2 {
+            font-size: 1.2rem;
+            margin-bottom: 1.5rem;
+            color: var(--accent);
+        }
+
+        .package-list {
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        .package-item {
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .package-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--primary);
+        }
+
+        .package-id {
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: block;
+        }
+
+        .package-status {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex-grow: 1;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            max-width: calc(100vw - 300px);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logout-btn {
+            padding: 0.5rem 1rem;
+            background: rgba(239, 68, 68, 0.1);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .top-row {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 2rem;
+        }
+
+        .card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Form Styling */
+        .form-group { margin-bottom: 1.2rem; }
+        label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--text-muted); text-transform: uppercase; }
+        input, select { width: 100%; padding: 0.8rem; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 10px; color: white; }
+        button#trackBtn { width: 100%; padding: 1rem; background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; margin-top: 1rem; }
+
+        /* Map and Results */
+        #map { height: 350px; border-radius: 16px; border: 1px solid var(--glass-border); }
+        
+        .agent-card {
+            background: rgba(167, 139, 250, 0.05);
+            border: 1px solid rgba(167, 139, 250, 0.1);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .loader {
+            display: none;
+            width: 24px; height: 24px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        /* Form Overlay (iOS/Mac Style) */
+        .form-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .form-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .form-overlay .card {
+            width: 100%;
+            max-width: 450px;
+            transform: scale(0.85) translateY(30px);
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+        }
+
+        .form-overlay.active .card {
+            transform: scale(1) translateY(0);
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 1.5rem; right: 1.5rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: color 0.2s;
+        }
+
+        .close-btn:hover { color: white; }
+
+        .track-more-btn {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(167, 139, 250, 0.1);
+            color: var(--accent);
+            border: 1px dashed rgba(167, 139, 250, 0.3);
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: all 0.2s;
+        }
+
+        .track-more-btn:hover {
+            background: rgba(167, 139, 250, 0.2);
+            border-color: var(--accent);
+        }
+
+        .status-badge {
+            margin: 0;
+            padding: 0.5rem 1.2rem;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(167, 139, 250, 0.2));
+            border: 1px solid rgba(167, 139, 250, 0.4);
+            border-radius: 100px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.1);
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Form Overlay -->
+    <div id="formOverlay" class="form-overlay {% if not packages %}active{% endif %}">
+        <div class="card">
+            {% if packages %}
+            <div class="close-btn" onclick="toggleForm(false)">✕</div>
+            {% endif %}
+            <h2 style="margin-top: 0; margin-bottom: 1.5rem; text-align: center;">New Shipment</h2>
+            <form id="trackForm">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label>Tracking Number</label>
+                    <input type="text" id="trackingNumber" required placeholder="JVGL...">
+                </div>
+                <div class="form-group">
+                    <label>Carrier</label>
+                    <select id="carrier">
+                        <option value="DHL">DHL</option>
+                        <option value="FedEx">FedEx</option>
+                        <option value="UPS">UPS</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Country</label>
+                    <input type="text" id="country" placeholder="e.g. netherlands">
+                </div>
+                <button type="submit" id="trackBtn">
+                    <span id="btnText">Start Tracking</span>
+                    <div class="loader" id="btnLoader"></div>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <h2>Your Shipments</h2>
+        <div class="package-list">
+            {% for package in packages %}
+            <div class="package-item" onclick="quickTrack('{{ package.tracking_number }}', '{{ package.carrier }}', '{{ package.country }}', '{{ package.package_status|escapejs }}')">
+                <span class="package-id">{{ package.tracking_number }}</span>
+                <span class="package-status">{{ package.carrier }} • {{ package.package_status|default:"Pending" }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        <button class="track-more-btn" onclick="toggleForm(true)">+ Track More Orders</button>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <h1>Tracking Dashboard</h1>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <span style="color: var(--text-muted); font-size: 0.9rem;">Welcome, {{ user.username }}</span>
+                <a href="{% url 'logout' %}" class="logout-btn">Logout</a>
+            </div>
+        </div>
+
+        <div id="resultsArea" style="display: {% if not packages %}none{% else %}flex{% endif %}; flex-direction: column; gap: 2rem;">
+            <div class="header" style="border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Current Shipment Status</span>
+                    <h2 id="mainStatus" class="status-badge">
+                        {{ packages.0.package_status|default:"Select Shipment" }}
+                    </h2>
+                </div>
+                <button id="refreshBtn" onclick="refreshCurrentPackage()" style="padding: 0.6rem 1.2rem; background: rgba(167, 139, 250, 0.1); border: 1px solid rgba(167, 139, 250, 0.3); color: var(--accent); border-radius: 12px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.6rem; transition: all 0.2s;">
+                    <span id="refreshText">↻ Refresh Now</span>
+                    <div class="loader" id="refreshLoader" style="width: 14px; height: 14px; border-width: 2px;"></div>
+                </button>
+            </div>
+
+            <div id="map" style="width: 100%;"></div>
+            
+            <div class="card agent-card">
+                <h3 style="color: var(--accent); margin-top: 0;">AI Agent Summary</h3>
+                <div id="agentSummary" style="font-size: 0.95rem; line-height: 1.6; color: var(--text-muted);">
+                    {{ packages.0.agent_summary|default:"Select a shipment to see the AI summary." }}
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 style="margin-top: 0;">Detailed History</h3>
+                <pre id="statusDetails" style="white-space: pre-wrap; font-family: inherit; font-size: 0.9rem; color: var(--text-muted);">Select a shipment from the sidebar to view history.</pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function formatStatus(status) {
+            if (!status || status === "Select Shipment") return status;
+            return status.split('_').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+            ).join(' ');
+        }
+
+        let map = null;
+        let markers = [];
+        let polyline = null;
+
+        function toggleForm(show) {
+            const overlay = document.getElementById('formOverlay');
+            if (show) {
+                overlay.classList.add('active');
+            } else {
+                overlay.classList.remove('active');
+            }
+        }
+
+        async function refreshCurrentPackage() {
+            const num = document.getElementById('trackingNumber').value;
+            const carrier = document.getElementById('carrier').value;
+            const country = document.getElementById('country').value;
+            
+            if (!num) return;
+
+            const refreshText = document.getElementById('refreshText');
+            const refreshLoader = document.getElementById('refreshLoader');
+            
+            refreshText.style.display = 'none';
+            refreshLoader.style.display = 'block';
+
+            try {
+                const response = await fetch('/api/track/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        tracking_number: num,
+                        carrier: carrier,
+                        country: country
+                    })
+                });
+
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Refresh failed');
+
+                // Update UI with fresh data
+                document.getElementById('mainStatus').textContent = formatStatus(data.status);
+                document.getElementById('agentSummary').textContent = data.agent_summary;
+                
+                let details = `Status: ${data.status}\n\nRecent Milestones:\n`;
+                if (data.events && data.events.length > 0) {
+                    data.events.forEach(ev => {
+                        details += `- ${typeof ev === 'string' ? ev : (ev.description || 'Update')}\n`;
+                    });
+                }
+                document.getElementById('statusDetails').textContent = details;
+                updateMap(data.coordinates);
+
+                // Update Sidebar too
+                const list = document.querySelector('.package-list');
+                const existing = Array.from(list.querySelectorAll('.package-id')).find(el => el.textContent === num);
+                if (existing) {
+                    existing.nextElementSibling.textContent = `${carrier} • ${data.status}`;
+                }
+
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                refreshText.style.display = 'block';
+                refreshLoader.style.display = 'none';
+            }
+        }
+
+        function initMap() {
+            if (map) return;
+            map = L.map('map').setView([20, 0], 2);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        }
+
+        function updateMap(coordinates) {
+            initMap();
+            markers.forEach(m => map.removeLayer(m));
+            if (polyline) map.removeLayer(polyline);
+            markers = [];
+            const points = [];
+
+            if (coordinates && coordinates.length > 0) {
+                coordinates.forEach(c => {
+                    const m = L.marker([c.lat, c.lng]).addTo(map).bindPopup(c.name);
+                    markers.push(m);
+                    points.push([c.lat, c.lng]);
+                });
+                if (points.length > 1) polyline = L.polyline(points, {color: '#3b82f6'}).addTo(map);
+                map.fitBounds(L.latLngBounds(points), {padding: [50, 50]});
+            }
+            setTimeout(() => map.invalidateSize(), 200);
+        }
+
+        async function quickTrack(num, carrier, country, status) {
+            document.getElementById('trackingNumber').value = num;
+            document.getElementById('carrier').value = carrier;
+            document.getElementById('country').value = country || '';
+            
+            if (status) {
+                document.getElementById('mainStatus').textContent = formatStatus(status);
+                document.getElementById('resultsArea').style.display = 'flex';
+            }
+            
+            try {
+                const response = await fetch(`/api/package/${num}/`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('mainStatus').textContent = formatStatus(data.status);
+                    document.getElementById('agentSummary').textContent = data.summary || 'No AI summary available.';
+                    
+                    let details = `Status: ${data.status}\n\nHistory:\n`;
+                    if (data.events && data.events.length > 0) {
+                        data.events.forEach(ev => {
+                            details += `- ${typeof ev === 'string' ? ev : (ev.description || 'Update')}\n`;
+                        });
+                    }
+                    document.getElementById('statusDetails').textContent = details;
+                    updateMap(data.coordinates);
+                }
+            } catch (err) {
+                console.error("Fetch error:", err);
+            }
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        async function pollUpdates() {
+            try {
+                const response = await fetch('/api/packages/');
+                const data = await response.json();
+                
+                const list = document.querySelector('.package-list');
+                const currentNum = document.getElementById('trackingNumber').value;
+                
+                data.forEach(pkg => {
+                    const existing = Array.from(list.querySelectorAll('.package-id')).find(el => el.textContent === pkg.tracking_number);
+                    if (existing) {
+                        const statusEl = existing.nextElementSibling;
+                        const newStatusText = `${pkg.carrier} • ${pkg.status || 'Pending'}`;
+                        if (statusEl.textContent !== newStatusText) {
+                            statusEl.textContent = newStatusText;
+                            if (pkg.tracking_number === currentNum) {
+                                document.getElementById('mainStatus').textContent = formatStatus(pkg.status);
+                            }
+                        }
+                    }
+                });
+            } catch (err) {
+                console.error("Polling error:", err);
+            }
+        }
+
+        setInterval(pollUpdates, 30000);
+
+        document.getElementById('trackForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btnText = document.getElementById('btnText');
+            const btnLoader = document.getElementById('btnLoader');
+            const resultsArea = document.getElementById('resultsArea');
+            
+            btnText.style.display = 'none';
+            btnLoader.style.display = 'block';
+            
+            try {
+                const response = await fetch('/api/track/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        tracking_number: document.getElementById('trackingNumber').value,
+                        carrier: document.getElementById('carrier').value,
+                        country: document.getElementById('country').value
+                    })
+                });
+
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Tracking failed');
+
+                toggleForm(false);
+                
+                resultsArea.style.display = 'flex';
+                document.getElementById('mainStatus').textContent = formatStatus(data.status);
+                document.getElementById('agentSummary').textContent = data.agent_summary;
+                
+                let details = `Status: ${data.status}\n\nRecent Milestones:\n`;
+                if (data.events && data.events.length > 0) {
+                    data.events.forEach(ev => {
+                        details += `- ${typeof ev === 'string' ? ev : (ev.description || 'Update')}\n`;
+                    });
+                }
+                document.getElementById('statusDetails').textContent = details;
+
+                // --- Dynamic Sidebar Update ---
+                const list = document.querySelector('.package-list');
+                const existing = Array.from(list.querySelectorAll('.package-id')).find(el => el.textContent === data.tracking_number);
+                
+                if (!existing) {
+                    const item = document.createElement('div');
+                    item.className = 'package-item';
+                    item.onclick = () => quickTrack(data.tracking_number, data.carrier, document.getElementById('country').value, data.status);
+                    item.innerHTML = `
+                        <span class="package-id">${data.tracking_number}</span>
+                        <span class="package-status">${data.carrier} • ${data.status}</span>
+                    `;
+                    list.prepend(item);
+                } else {
+                    existing.nextElementSibling.textContent = `${data.carrier} • ${data.status}`;
+                }
+
+                updateMap(data.coordinates);
+
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                btnText.style.display = 'block';
+                btnLoader.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

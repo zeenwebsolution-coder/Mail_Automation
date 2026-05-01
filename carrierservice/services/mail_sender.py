@@ -1,6 +1,11 @@
 import os 
 from mailjet_rest import Client
+from tenacity import retry, stop_after_attempt, wait_exponential
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=5)
+) 
 def send_status_email(to_email, subject, body_text):
     api_key=os.getenv("MAILJET_API_KEY")
     api_secret=os.getenv('MAILJET_API_SECRET')

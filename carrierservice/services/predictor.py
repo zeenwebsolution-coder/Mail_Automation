@@ -4,6 +4,7 @@ import logging
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -44,6 +45,7 @@ Rules:
 """
 
 
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=4, max=10))
 def predict_delivery(tracking_data: dict) -> dict:
     """
     Analyze shipment tracking data and predict delivery ETA.

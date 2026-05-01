@@ -6,3 +6,4 @@ langchain-community
 langchain-openai
 requests
 django-environ
+langchain-agent

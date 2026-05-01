@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Carrier Tracking Portal</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -270,6 +272,35 @@
             max-height: 300px;
             overflow-y: auto;
         }
+
+        #map {
+            height: 250px;
+            width: 100%;
+            border-radius: 16px;
+            margin-top: 1.5rem;
+            display: none;
+            border: 1px solid var(--glass-border);
+            z-index: 1;
+        }
+
+        .agent-card {
+            display: none;
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            background: rgba(167, 139, 250, 0.1);
+            border: 1px solid rgba(167, 139, 250, 0.2);
+            border-radius: 16px;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .agent-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            color: #a78bfa;
+            margin-bottom: 0.75rem;
+        }
     </style>
 </head>
 <body>
@@ -301,11 +332,26 @@
                 </select>
             </div>
 
+            <div class="form-group">
+                <label for="country">Country</label>
+                <input type="text" id="country" placeholder="e.g. Netherlands, France, US">
+            </div>
+
             <button type="submit" id="submitBtn">
                 <span id="btnText">Track Package</span>
                 <div class="loader" id="btnLoader"></div>
             </button>
         </form>
+
+        <div id="map"></div>
+        
+        <div class="agent-card" id="agentCard">
+            <div class="agent-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10H12V2z"></path><path d="M12 12L2.1 12.1"></path><path d="M12 12l9.9-0.1"></path><circle cx="12" cy="12" r="10"></circle></svg>
+                Multi-Carrier Agent Summary
+            </div>
+            <div id="agentSummaryText" style="font-size: 0.9rem; line-height: 1.6; color: var(--text-muted);"></div>
+        </div>
 
         <div class="eta-card" id="etaCard">
             <div class="eta-header">
@@ -339,6 +385,7 @@
             const emailInput = document.getElementById('email');
             const trackingInput = document.getElementById('trackingNumber');
             const carrierSelect = document.getElementById('carrier');
+            const countryInput = document.getElementById('country');
             const form = document.getElementById('trackingForm');
             const resultCard = document.getElementById('resultCard');
             const resultTitle = document.getElementById('resultTitle');
@@ -351,6 +398,60 @@
             const etaConfidenceText = document.getElementById('etaConfidenceText');
             const etaReasoning = document.getElementById('etaReasoning');
             const etaRisks = document.getElementById('etaRisks');
+            
+            const agentCard = document.getElementById('agentCard');
+            const agentSummaryText = document.getElementById('agentSummaryText');
+            
+            let map = null;
+            let markers = [];
+            let polyline = null;
+
+            function initMap() {
+                if (map) return;
+                map = L.map('map').setView([0, 0], 2);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
+            }
+
+            function updateMap(coordinates) {
+                const mapDiv = document.getElementById('map');
+                if (!coordinates || coordinates.length === 0) {
+                    mapDiv.style.display = 'none';
+                    return;
+                }
+                
+                mapDiv.style.display = 'block';
+                initMap();
+                
+                // Clear old markers
+                markers.forEach(m => map.removeLayer(m));
+                if (polyline) map.removeLayer(polyline);
+                markers = [];
+                
+                const points = [];
+                coordinates.forEach(coord => {
+                    if (coord.lat && coord.lng) {
+                        const marker = L.marker([coord.lat, coord.lng])
+                            .addTo(map)
+                            .bindPopup(coord.name || "Location");
+                        markers.push(marker);
+                        points.push([coord.lat, coord.lng]);
+                    }
+                });
+                
+                if (points.length > 0) {
+                    if (points.length > 1) {
+                        polyline = L.polyline(points, {color: '#3b82f6', weight: 3, dashArray: '5, 10'}).addTo(map);
+                    }
+                    map.fitBounds(L.latLngBounds(points), {padding: [50, 50]});
+                }
+                
+                // Force a resize check in case the map was initialized while hidden
+                setTimeout(() => {
+                    map.invalidateSize();
+                }, 200);
+            }
 
             if (localStorage.getItem('savedEmail')) {
                 emailInput.value = localStorage.getItem('savedEmail');
@@ -383,6 +484,7 @@
                 localStorage.setItem('savedEmail', emailInput.value);
                 localStorage.setItem('savedTracking', trackingInput.value);
                 localStorage.setItem('savedCarrier', carrierSelect.value);
+                localStorage.setItem('savedCountry', countryInput.value);
 
                 const btnText = document.getElementById('btnText');
                 const btnLoader = document.getElementById('btnLoader');
@@ -394,6 +496,8 @@
                 
                 resultCard.style.display = 'none';
                 etaCard.style.display = 'none';
+                agentCard.style.display = 'none';
+                document.getElementById('map').style.display = 'none';
                 
                 try {
                     const response = await fetch('/api/track/', {
@@ -405,7 +509,8 @@
                         body: JSON.stringify({
                             email: emailInput.value,
                             tracking_number: trackingInput.value,
-                            carrier: carrierSelect.value
+                            carrier: carrierSelect.value,
+                            country: countryInput.value
                         })
                     });
                     
@@ -418,7 +523,27 @@
                     resultCard.style.display = 'block';
                     resultCard.className = 'result-card';
 
-                    if (data.shipments && data.shipments.length > 0) {
+                    // Handle Agent Summary (New Format)
+                    if (data.agent_summary) {
+                        agentCard.style.display = 'block';
+                        agentSummaryText.textContent = data.agent_summary;
+                        resultTitle.textContent = "Status: " + (data.status || "Processed");
+                        let displayText = data.agent_summary + "\n\n";
+                        
+                        if (data.events && data.events.length > 0) {
+                            displayText += "Recent Milestones:\n";
+                            data.events.forEach(ev => {
+                                if (typeof ev === 'string') {
+                                    displayText += `- ${ev}\n`;
+                                } else {
+                                    displayText += `- ${ev.description || ev.status || 'Update'} (${ev.location || ev.timestamp || ''})\n`;
+                                }
+                            });
+                        }
+                        resultText.textContent = displayText;
+                    } 
+                    // Handle Legacy Format (shipments)
+                    else if (data.shipments && data.shipments.length > 0) {
                         const shipment = data.shipments[0];
                         const mainStatus = shipment.status ? shipment.status.status : "Unknown";
                         resultTitle.textContent = "Status: " + mainStatus;
@@ -438,8 +563,8 @@
                         }
                         resultText.textContent = displayText;
                     } else {
-                        resultTitle.textContent = "Raw Response";
-                        resultText.textContent = JSON.stringify(data, null, 2);
+                        resultTitle.textContent = "Tracking Update";
+                        resultText.textContent = data.status || "Request processed successfully.";
                     }
 
                     // AI ETA Prediction UI
@@ -476,6 +601,12 @@
                                 etaRisks.appendChild(span);
                             });
                         }
+                    }
+
+                    // Coordinates handling
+
+                    if (data.coordinates && data.coordinates.length > 0) {
+                        updateMap(data.coordinates);
                     }
                     
                 } catch (error) {

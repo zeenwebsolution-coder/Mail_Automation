@@ -1,0 +1,31 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+myenv/
+env/
+venv/
+.venv/
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+media/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Private / Secrets
+.env
+*.pyc
+
+# Local Test files
+test.py
+test_api.py
+
+# Documentation (optional, but keep if you want it private)
+DOCUMENTATION.md
