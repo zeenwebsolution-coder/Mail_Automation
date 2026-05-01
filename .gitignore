@@ -3,19 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-<<<<<<< HEAD
 # Environments
 myenv/
 env/
 venv/
-.venv/
-
-# Django
-db.sqlite3
-db.sqlite3-journal
-staticfiles/
-media/
-=======
 # C extensions
 *.so
 
@@ -45,13 +36,10 @@ ENV/
 .idea/
 *.swp
 *.swo
->>>>>>> 5d2341e6b928c26d5e9cd16210e76ad008982675
-
 # OS files
 .DS_Store
 Thumbs.db
 
-<<<<<<< HEAD
 # Private / Secrets
 .env
 *.pyc
@@ -62,7 +50,7 @@ test_api.py
 
 # Documentation (optional, but keep if you want it private)
 DOCUMENTATION.md
-=======
+
 # Python packaging
 build/
 dist/
@@ -83,6 +71,4 @@ node_modules/
 # Misc
 *.bak
 *.tmp
-
 */migrations/*
->>>>>>> 5d2341e6b928c26d5e9cd16210e76ad008982675
