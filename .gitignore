@@ -57,3 +57,5 @@ node_modules/
 # Misc
 *.bak
 *.tmp
+
+*/migrations/*
