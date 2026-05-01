@@ -1,0 +1,59 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Django stuff
+*.log
+db.sqlite3
+media/
+staticfiles/
+
+# Ignore ALL migrations
+**/migrations/*
+!**/migrations/__init__.py
+
+# Environment variables
+.env
+.env.*
+*.env
+
+# Virtual environments
+myenv/
+venv/
+env/
+ENV/
+
+# IDE / Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Testing / coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Ignore everything inside .ignoreme folder
+.ignoreme/
+
+# Node (if using frontend with Django)
+node_modules/
+
+# Misc
+*.bak
+*.tmp
